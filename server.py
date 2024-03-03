@@ -73,12 +73,25 @@ def displayActorDetails():
         first_name = request.args.get('f_name')
         last_name = request.args.get('l_name')
         cur = mysql.connection.cursor()
-        cur.execute("""SELECT a.*, f.title AS film_title
-                    FROM actor a
-                    JOIN film_actor fa ON a.actor_id = fa.actor_id
-                    JOIN film f ON fa.film_id = f.film_id
-                    WHERE a.first_name = %s AND a.last_name = %s;
-                    """, (first_name, last_name,))
+        cur.execute("""SELECT 
+                            a.first_name,
+                            a.last_name,
+                            AVG(f.rating) AS average_rating,
+                            GROUP_CONCAT(f.title ORDER BY f.title ASC SEPARATOR ', ') AS movies
+                        FROM 
+                            actor a
+                        JOIN 
+                            film_actor fa ON a.actor_id = fa.actor_id
+                        JOIN 
+                            film f ON fa.film_id = f.film_id
+                        JOIN 
+                            film_category fc ON f.film_id = fc.film_id
+                        JOIN 
+                            category c ON fc.category_id = c.category_id
+                        GROUP BY 
+                            a.first_name, a.last_name
+                        HAVING 
+                            a.first_name = %s AND a.last_name = %s;""", (first_name, last_name,))
         data = cur.fetchall()
         cur.close()
         return jsonify(data)
