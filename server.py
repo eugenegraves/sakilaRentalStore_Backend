@@ -113,6 +113,61 @@ def displayActorDetails():
     except Exception as e:
         return jsonify({'error': str(e)})
 
+@app.route('/film_search_default', methods=['GET'])
+def displayBaseSearchResults():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("""SELECT DISTINCT f.title
+                        FROM film f
+                        INNER JOIN inventory i ON f.film_id = i.film_id
+                        WHERE i.inventory_id NOT IN (
+                        SELECT inventory_id
+                        FROM rental r
+                        WHERE r.return_date IS NULL
+                        );""")
+        data = cur.fetchall()
+        cur.close()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/film_search/<filter>', methods=['GET'])
+def displaySearchResults(filter):
+    try:
+        search_term = request.args.get('q')
+        cur = mysql.connection.cursor()
+        print(filter)
+        if filter == "film":
+            query = """
+                SELECT title, film_id
+                FROM film
+                WHERE title LIKE (%s)
+            """
+            cur.execute(query, ("%" + search_term + "%",))
+        elif filter == "actor":
+            query = """
+                SELECT f.title, f.film_id
+                FROM film f
+                INNER JOIN film_actor fa ON f.film_id = fa.film_id
+                INNER JOIN actor a ON fa.actor_id = a.actor_id
+                WHERE (a.first_name LIKE (%s) OR a.last_name LIKE (%s) OR CONCAT(a.first_name, ' ', a.last_name) LIKE (%s))
+            """
+            cur.execute(query, ("%" + search_term + "%",) * 3)
+        elif filter == "genre":
+            query = """
+                SELECT f.title, g.name AS genre
+                FROM film f
+                INNER JOIN film_category fc ON f.film_id = fc.film_id
+                INNER JOIN category g ON fc.category_id = g.category_id
+                WHERE g.name LIKE (%s);
+            """
+            cur.execute(query, ("%" + search_term + "%",))
+        data = cur.fetchall()
+        cur.close()
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
 '''
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
