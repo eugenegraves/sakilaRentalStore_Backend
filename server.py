@@ -168,6 +168,8 @@ def displaySearchResults(filter):
     except Exception as e:
         return jsonify({'error': str(e)})
 
+
+#Feature 6 Done
 '''
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
