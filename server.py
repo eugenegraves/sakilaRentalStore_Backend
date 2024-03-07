@@ -33,7 +33,15 @@ def displayFilmDetails():
         #data = request.json
         title = request.args.get('title')
         cur = mysql.connection.cursor()
-        cur.execute("SELECT film_id, title, description, release_year, language_id, original_language_id, rental_duration, rental_rate, length, replacement_cost, rating, special_features, last_update FROM film WHERE title = %s;", (title,))
+        cur.execute("""
+                    SELECT f.film_id, f.title, f.description, f.release_year, f.language_id, f.original_language_id,
+                        f.rental_duration, f.rental_rate, f.length, f.replacement_cost, f.rating, f.special_features, f.last_update,
+                        i.inventory_id, s.store_id
+                    FROM film f
+                    INNER JOIN inventory i ON f.film_id = i.film_id
+                    INNER JOIN store s ON i.store_id = s.store_id
+                    WHERE f.title = %s;
+                    """, (title,))
         data = cur.fetchall()
         cur.close()
         return jsonify(data)
@@ -168,8 +176,33 @@ def displaySearchResults(filter):
     except Exception as e:
         return jsonify({'error': str(e)})
 
+@app.route('/check_availability', methods=['POST'])
+def check_availability():
+    try:
+        title = request.args.get('title')
+        cur = mysql.connection.cursor()
+        cur.execute("""
+        SELECT count(*) as available 
+        FROM film f
+        JOIN inventory i ON f.film_id = i.film_id
+        WHERE f.title = (%s) AND i.inventory_id NOT IN (
+        SELECT inventory_id FROM rental r
+        WHERE r.return_date IS NULL);""", (title,))
+        available = cur.fetchone()
+        print("hi")
+        message = "Film is available" if available[0] > 0 else "Film is not available"
+        return jsonify({'available': available[0], 'message': message})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
-#Feature 6 Done
+
+@app.route('/customers')
+def get_customers():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT first_name, last_name FROM customer")
+    customers = cur.fetchall()
+    return jsonify([{'value': f"{first_name} {last_name}", 'text': f"{first_name} {last_name}"} for first_name, last_name in customers])
+
 '''
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
